@@ -83,11 +83,30 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
 const teacherRoutes = require('./routes/teacher.routes');
+const attendanceRoutes = require('./routes/attendanceRoutes');
+const clerkRoutes = require('./routes/clerk.routes');
+const studentRoutes = require('./routes/student.routes');
+const onboardingRoutes = require('./routes/onboarding.routes');
+const branchOnboardingRoutes = require('./routes/branches.route');
+const announcementRoutes = require('./routes/announcement.routes');
+
+
+
+
 
 // Mount routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/teachers', teacherRoutes);
+app.use('/api/attendance', attendanceRoutes);
+app.use('/api/clerks', clerkRoutes);
+app.use('/api/students', studentRoutes);
+app.use('/api/onboarding', onboardingRoutes);
+app.use('/api/branchOnboarding', branchOnboardingRoutes);
+app.use('/api/announcements', announcementRoutes);
+
+
+
 
 // Test root route
 app.get('/', (req, res) => {
