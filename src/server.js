@@ -83,12 +83,19 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
 const teacherRoutes = require('./routes/teacher.routes');
-const attendanceRoutes = require('./routes/attendanceRoutes');
+const attendanceRoutes = require('./routes/attendance.routes');
 const clerkRoutes = require('./routes/clerk.routes');
 const studentRoutes = require('./routes/student.routes');
 const onboardingRoutes = require('./routes/onboarding.routes');
 const branchOnboardingRoutes = require('./routes/branches.route');
 const announcementRoutes = require('./routes/announcement.routes');
+const academicYearRoutes = require('./routes/academic-year.routes');
+const gradeRoutes = require('./routes/grade.routes');
+const classRoutes = require('./routes/class.routes');
+const timetableRoutes = require('./routes/timetable.routes');
+const timetableEntryRoutes = require('./routes/timetable-entry.routes');
+const leaverequestRoutes = require('./routes/leave_requests.routes');
+const userProfileRoutes = require('./routes/userProfile.routes');
 
 
 
@@ -104,6 +111,17 @@ app.use('/api/students', studentRoutes);
 app.use('/api/onboarding', onboardingRoutes);
 app.use('/api/branchOnboarding', branchOnboardingRoutes);
 app.use('/api/announcements', announcementRoutes);
+app.use('/api/academic-years', academicYearRoutes);
+app.use('/api/grades', gradeRoutes);
+app.use('/api/classes', classRoutes);
+app.use('/api/timetables', timetableRoutes);
+app.use('/api/timetable-entries', timetableEntryRoutes);
+app.use('/api/leave-requests', leaverequestRoutes);
+app.use('/api/profile', userProfileRoutes);
+
+
+
+
 
 
 

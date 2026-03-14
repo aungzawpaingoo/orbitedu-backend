@@ -1,11 +1,12 @@
 const router = require('express').Router();
-const ctrl = require('../controllers/__TABLE__.controller');
+const ctrl = require('../controllers/leave_requests.controller');
 const { verifyToken } = require('../middleware/auth.middleware');
 
 router.use(verifyToken);
 
-router.get('/', ctrl.getAll);
+router.get('/approver', ctrl.getApprover);
 router.get('/:id', ctrl.getById);
+router.get('/', ctrl.getAll);
 router.post('/', ctrl.create);
 router.put('/:id', ctrl.update);
 router.delete('/:id', ctrl.remove);

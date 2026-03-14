@@ -97,6 +97,25 @@ const createUser = async (req, res) => {
       [name, username, hashedPassword, password, role, orgId, branchId, secret.base32, false]
     );
 
+    const userId = result.insertId;
+
+    // === Insert base profile row for Teacher or Clerk ===
+    try {
+      if (role === 'Teacher') {
+        await pool.promise().execute(
+          `INSERT INTO teacher_profiles (user_id, created_at) VALUES (?, CURRENT_TIMESTAMP)`,
+          [userId]
+        );
+      } else if (role === 'Clerk') {
+        await pool.promise().execute(
+          `INSERT INTO clerk_profiles (user_id, created_at) VALUES (?, CURRENT_TIMESTAMP)`,
+          [userId]
+        );
+      }
+    } catch (profileErr) {
+      console.error('Profile creation error:', profileErr);
+    }
+
     // Generate QR code URL for frontend to display
     const qrCodeUrl = await qrcode.toDataURL(secret.otpauth_url);
 
@@ -131,22 +150,72 @@ const getCreatedUsersByCurrentUser = async (req, res) => {
     let params = [];
 
     if (role === 'orbitEDU_Admin') {
-      query = `SELECT username, role FROM users WHERE role = 'Super_Admin'`;
+      query = `SELECT id, name, username, role, organization_id, branch_id, created_at, two_factor_secret FROM users WHERE role = 'Super_Admin'`;
     } else if (role === 'Super_Admin') {
-      query = `SELECT username, role FROM users WHERE organization_id = ? AND role = 'School_Admin'`;
+      query = `SELECT id, name, username, role, organization_id, branch_id, created_at, two_factor_secret FROM users WHERE organization_id = ? AND role = 'School_Admin'`;
       params = [organization_id];
     } else if (role === 'School_Admin') {
-      query = `SELECT username, role FROM users WHERE branch_id = ? AND role IN ('Teacher', 'Clerk')`;
+      query = `SELECT id, name, username, role, organization_id, branch_id, created_at, two_factor_secret FROM users WHERE branch_id = ? AND role IN ('Teacher', 'Clerk')`;
       params = [branch_id];
     } else {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
+    /**
+     * if (role === 'orbitEDU_Admin') {
+      query = `SELECT id, name, username, role, organization_id, branch_id, created_at, plain_password, two_factor_enabled, CASE WHEN two_factor_enabled = 0 THEN two_factor_secret ELSE NULL END AS two_factor_secret FROM users WHERE role = 'Super_Admin'`;
+    } 
+    else if (role === 'Super_Admin') {
+      query = `SELECT id, name, username, role, organization_id, branch_id, created_at, plain_password, two_factor_enabled, CASE WHEN two_factor_enabled = 0 THEN two_factor_secret ELSE NULL END AS two_factor_secret FROM users WHERE organization_id = ? AND role = 'School_Admin'`;
+      params = [organization_id];
+    } 
+    else if (role === 'School_Admin') {
+      query = `SELECT id, name, username, role, organization_id, branch_id, created_at, plain_password, two_factor_enabled, CASE WHEN two_factor_enabled = 0 THEN two_factor_secret ELSE NULL END AS two_factor_secret FROM users WHERE branch_id = ? AND role IN ('Teacher', 'Clerk')`;
+      params = [branch_id];
+    } 
+    else {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+    
+    */
+
     const [users] = await pool.promise().execute(query, params);
+    //console.log('created users list', users)
     res.json({ users });
   } catch (error) {
     console.error('❌ Fetch created users error:', error);
     res.status(500).json({ message: 'Failed to fetch created users' });
+  }
+};
+
+// ========== Get Users with Filters (for frontend dropdowns) ==========
+const getUsers = async (req, res) => {
+  try {
+    const { role, branch_id, organization_id } = req.query;
+
+    let sql = `SELECT id, name, username, role, organization_id, branch_id FROM users WHERE 1=1`;
+    const params = [];
+
+    if (role) {
+      sql += ` AND role = ?`;
+      params.push(role);
+    }
+
+    if (branch_id) {
+      sql += ` AND branch_id = ?`;
+      params.push(branch_id);
+    }
+
+    if (organization_id) {
+      sql += ` AND organization_id = ?`;
+      params.push(organization_id);
+    }
+
+    const [rows] = await pool.promise().query(sql, params);
+    res.json(rows);
+  } catch (err) {
+    console.error('❌ Fetch users error:', err);
+    res.status(500).json({ message: 'Failed to fetch users', error: err.message });
   }
 };
 
@@ -193,5 +262,6 @@ const verifyUser2FA = async (req, res) => {
 module.exports = {
   createUser,
   getCreatedUsersByCurrentUser,
-  verifyUser2FA
+  verifyUser2FA,
+  getUsers
 };

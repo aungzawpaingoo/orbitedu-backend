@@ -212,7 +212,8 @@ const verify2FA = async (req, res) => {
         username: user.username,
         role: user.role,
         organization_id: user.organization_id,
-        branch_id: user.branch_id
+        branch_id: user.branch_id,
+        created_at: user.created_at
       }
     });
   } catch (error) {

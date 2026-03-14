@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const ctrl = require('../controllers/__TABLE__.controller');
+const ctrl = require('../controllers/timetable.controller');
 const { verifyToken } = require('../middleware/auth.middleware');
 
 router.use(verifyToken);

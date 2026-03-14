@@ -1,10 +1,5 @@
 const pool = require('../config/db');
 
-/**
- * STEP 1: Create Organization
- * Only orbitEDU_Admin
- * Also submit KYC details
- */
 exports.createOrganization = async (req, res) => {
   if (req.user.role !== 'orbitEDU_Admin') {
     return res.status(403).json({ message: 'Unauthorized' });
@@ -80,10 +75,10 @@ exports.createBranch = async (req, res) => {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
-    // Validation
-    if (!organization_id || !name || !location || !address || !city || !country || !billing_start_date) {
-      return res.status(400).json({ message: 'All required fields must be provided' });
-    }
+    // // Validation
+    // if (!organization_id || !name || !location || !address || !city || !country || !billing_start_date) {
+    //   return res.status(400).json({ message: 'All required fields must be provided' });
+    // }
 
     const [result] = await pool.promise().execute(
       `INSERT INTO branches
@@ -112,6 +107,56 @@ exports.createBranch = async (req, res) => {
     res.status(500).json({ message: 'Branch creation failed', error: err.message });
   }
 };
+
+
+exports.getOrganizationsWithBranches = async (req, res) => {
+  try {
+    // This query gets organizations and their linked branches
+    const [rows] = await pool.promise().execute(`
+      SELECT 
+        o.id as org_id, 
+        o.name as org_name, 
+        b.id as branch_id, 
+        b.name as branch_name,
+        b.city as branch_city
+      FROM organizations o
+      LEFT JOIN branches b ON o.id = b.organization_id
+      WHERE o.status = 'active' OR o.status = 'pending'
+    `);
+
+    // Grouping the flat SQL result into a nested JSON structure
+    const organizations = rows.reduce((acc, row) => {
+      const { org_id, org_name, branch_id, branch_name, branch_city } = row;
+
+      if (!acc[org_id]) {
+        acc[org_id] = {
+          label: org_name,
+          value: org_id.toString(),
+          image: 'https://via.placeholder.com/150', // Default image or add image column to DB
+          branches: []
+        };
+      }
+
+      if (branch_id) {
+        acc[org_id].branches.push({
+          // label: `${branch_name} _ (${branch_city})`,
+          label: `${branch_name}`,
+
+          value: branch_id.toString()
+        });
+      }
+
+      return acc;
+    }, {});
+
+    res.json(Object.values(organizations));
+  } catch (err) {
+    console.error('❌ Fetch schools error:', err);
+    res.status(500).json({ message: 'Failed to fetch schools' });
+  }
+};
+
+
 
 
 /**

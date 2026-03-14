@@ -2,8 +2,12 @@ const pool = require('../config/db');
 
 /* ===================== GET ALL ===================== */
 exports.getAll = async (req, res) => {
-  const [rows] = await pool.promise().query(
-    `SELECT * FROM __TABLE__`
+  const orgId = req.user?.organization_id;
+  if (!orgId) return res.status(401).json({ message: 'Unauthorized' });
+
+  const [rows] = await pool.promise().execute(
+    `SELECT * FROM grades WHERE organization_id = ? ORDER BY level_number ASC`,
+    [orgId]
   );
   res.json(rows);
 };
@@ -11,24 +15,23 @@ exports.getAll = async (req, res) => {
 /* ===================== GET BY ID ===================== */
 exports.getById = async (req, res) => {
   const { id } = req.params;
-
-  const [rows] = await pool.promise().query(
-    `SELECT * FROM __TABLE__ WHERE id = ?`,
+  const [rows] = await pool.promise().execute(
+    `SELECT * FROM grades WHERE id = ?`,
     [id]
   );
-
   res.json(rows[0] || null);
 };
 
 /* ===================== CREATE ===================== */
 exports.create = async (req, res) => {
-  const data = req.body;
+  const orgId = req.user?.organization_id;
+  const data = { ...req.body, organization_id: orgId };
 
   const columns = Object.keys(data);
   const values = Object.values(data);
 
   const sql = `
-    INSERT INTO __TABLE__
+    INSERT INTO grades
     (${columns.map(c => `\`${c}\``).join(',')})
     VALUES (${columns.map(() => '?').join(',')})
   `;
@@ -46,7 +49,7 @@ exports.update = async (req, res) => {
   const values = Object.values(data);
 
   const sql = `
-    UPDATE __TABLE__
+    UPDATE grades
     SET ${columns.map(c => `\`${c}\` = ?`).join(',')}
     WHERE id = ?
   `;
@@ -58,11 +61,9 @@ exports.update = async (req, res) => {
 /* ===================== DELETE ===================== */
 exports.remove = async (req, res) => {
   const { id } = req.params;
-
   await pool.promise().execute(
-    `DELETE FROM __TABLE__ WHERE id = ?`,
+    `DELETE FROM grades WHERE id = ?`,
     [id]
   );
-
   res.json({ success: true });
 };

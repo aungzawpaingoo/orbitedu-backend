@@ -146,6 +146,39 @@ exports.getAnnouncementById = async (req, res) => {
   }
 };
 
+
+/**Get announcement for the mobile app users by their role */
+exports.getMyAnnouncements = async (req, res) => {
+  const user = req.user;
+
+try {
+    const [rows] = await pool.promise().query(
+ `
+      SELECT DISTINCT a.*
+      FROM announcements a
+      JOIN announcement_targets t ON a.id = t.announcement_id
+      WHERE a.organization_id = ?
+        AND a.status = 'published'
+        AND t.target_role = ?
+        AND (a.branch_id = ? OR a.branch_id IS NULL)
+      ORDER BY a.created_at DESC
+      `,
+      [user.organization_id, user.role, user.branch_id]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    console.error('Get My Announcements error:', err);
+    res.status(500).json({ 
+      message: 'Failed to load announcements', 
+      error: err.message 
+    });
+  }
+};
+
+
+
+
 /**
  * UPDATE announcement
  */

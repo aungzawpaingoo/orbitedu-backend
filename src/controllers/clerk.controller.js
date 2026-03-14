@@ -1,184 +1,381 @@
-const path = require('path');
-const fs = require('fs');
-const db = require('../config/db');
+// const pool = require('../config/db');
 
-// Absolute path to uploads folder
-const uploadRoot = path.join(__dirname, '..', 'uploads');
+// /* ===================== GET ALL CLERKS ===================== */
+// exports.getAll = async (req, res) => {
+//   try {
+//     const requesterOrg = req.user?.organization_id;
+//     const requesterBranch = req.user?.branch_id;
+//     const requesterRole = req.user?.role;
 
-// Convert absolute path to relative for public URLs
-function toRelativeUploadPath(fullPath) {
-  return path.relative(uploadRoot, fullPath).replace(/\\/g, '/');
-}
+//     if (!requesterOrg) return res.status(401).json({ message: 'Unauthorized' });
 
-exports.createOrUpdateProfile = async (req, res) => {
+//     let sql = `
+//       SELECT u.*, cp.* 
+//       FROM users u
+//       LEFT JOIN clerk_profiles cp ON u.id = cp.user_id
+//       WHERE u.organization_id = ? AND u.role = 'Clerk'
+//     `;
+//     const params = [requesterOrg];
+
+//     if (requesterRole !== 'Super_Admin' && requesterBranch) {
+//       sql += ` AND u.branch_id = ?`;
+//       params.push(requesterBranch);
+//     }
+
+//     sql += ` ORDER BY u.name ASC, u.created_at DESC`;
+
+//     const [rows] = await pool.promise().execute(sql, params);
+
+//     res.json(rows.map(c => ({
+//       ...c,
+//       has_profile: !!(c.phone_number || c.date_of_birth)
+//     })));
+//   } catch (err) {
+//     console.error('Error fetching clerks:', err);
+//     res.status(500).json({
+//       message: 'Server error',
+//       error: process.env.NODE_ENV === 'development' ? err.message : undefined
+//     });
+//   }
+// };
+
+// /* ===================== GET CLERK BY ID ===================== */
+// exports.getById = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const requesterId = req.user?.id;
+//     const requesterOrg = req.user?.organization_id;
+//     const requesterBranch = req.user?.branch_id;
+//     const requesterRole = req.user?.role;
+
+//     if (!id) return res.status(400).json({ message: 'Clerk ID is required' });
+
+//     // const [targetRows] = await pool.promise().execute(
+//     //   `SELECT u.*, cp.* 
+//     //    FROM users u
+//     //    LEFT JOIN clerk_profiles cp ON u.id = cp.user_id
+//     //    WHERE u.id = ?`,
+//     //   [id]
+//     // );
+
+//     // Alias columns to prevent id collision
+//     const [targetRows] = await pool.promise().execute(
+//       `SELECT 
+//           u.id AS user_id, u.name, u.username, u.role, u.organization_id, u.branch_id, u.created_at,
+//           cp.id AS profile_id, cp.date_of_birth, cp.phone_number, cp.gender
+//        FROM users u
+//        LEFT JOIN clerk_profiles cp ON u.id = cp.user_id
+//        WHERE u.id = ?`,
+//       [id]
+//     );
+
+//     if (targetRows.length === 0) return res.status(404).json({ message: 'Clerk not found' });
+
+//     const target = targetRows[0];
+
+//     const isSelf = requesterId === parseInt(id);
+//     const isSameOrg = requesterOrg === target.organization_id;
+//     const isAdmin = ['Super_Admin', 'School_Admin'].includes(requesterRole);
+//     const canView = isSelf || (isAdmin && isSameOrg && (!requesterBranch || requesterBranch === target.branch_id));
+
+//     if (!canView) return res.status(403).json({ message: 'Access denied' });
+
+//     // res.json({ ...target, has_profile: !!(target.phone_number || target.date_of_birth) });
+//      // Return user_id as id to front-end, keep profile info separate
+//     res.json({
+//       id: target.user_id,
+//       name: target.name,
+//       username: target.username,
+//       role: target.role,
+//       organization_id: target.organization_id,
+//       branch_id: target.branch_id,
+//       created_at: target.created_at,
+//       date_of_birth: target.date_of_birth,
+//       phone_number: target.phone_number,
+//       gender: target.gender,
+//       has_profile: !!(target.phone_number || target.date_of_birth)
+//     });
+//   } catch (err) {
+//     console.error('Error fetching clerk by ID:', err);
+//     res.status(500).json({
+//       message: 'Server error',
+//       error: process.env.NODE_ENV === 'development' ? err.message : undefined
+//     });
+//   }
+// };
+
+// /* ===================== CREATE OR UPDATE PROFILE ===================== */
+// exports.create = exports.update = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const data = req.body;
+
+//     if (data.date_of_birth) {
+//       const d = new Date(data.date_of_birth);
+//       data.date_of_birth = d.toISOString().slice(0, 10);
+//     }
+
+//     if (!id) return res.status(400).json({ message: 'Clerk ID is required' });
+
+//     const [userCheck] = await pool.promise().execute(
+//       'SELECT id FROM users WHERE id = ?',
+//       [id]
+//     );
+//     if (userCheck.length === 0) return res.status(404).json({ message: 'User not found' });
+
+//     const [existing] = await pool.promise().execute(
+//       'SELECT * FROM clerk_profiles WHERE user_id = ?',
+//       [id]
+//     );
+
+//     const columns = Object.keys(data);
+//     const values = Object.values(data);
+
+//     if (existing.length > 0) {
+//       const sql = `UPDATE clerk_profiles SET ${columns.map(c => `\`${c}\` = ?`).join(',')}, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?`;
+//       await pool.promise().execute(sql, [...values, id]);
+//       return res.json({ message: 'Profile updated successfully' });
+//     } else {
+//       const sql = `INSERT INTO clerk_profiles (user_id, ${columns.map(c => `\`${c}\``).join(',')}, created_at) VALUES (?, ${columns.map(() => '?').join(',')}, CURRENT_TIMESTAMP)`;
+//       await pool.promise().execute(sql, [id, ...values]);
+//       return res.json({ message: 'Profile created successfully' });
+//     }
+//   } catch (err) {
+//     console.error('Error creating/updating profile:', err);
+//     res.status(500).json({
+//       message: 'Server error',
+//       error: process.env.NODE_ENV === 'development' ? err.message : undefined
+//     });
+//   }
+// };
+
+// /* ===================== DELETE PROFILE ===================== */
+// exports.remove = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const requesterId = req.user?.id;
+//     const requesterRole = req.user?.role;
+
+//     if (!id) return res.status(400).json({ message: 'Clerk ID is required' });
+
+//     const isSelf = requesterId === parseInt(id);
+//     const isAdmin = ['Super_Admin', 'School_Admin'].includes(requesterRole);
+
+//     if (!isSelf && !isAdmin) return res.status(403).json({ message: 'Access denied' });
+
+//     const [result] = await pool.promise().execute(
+//       'DELETE FROM clerk_profiles WHERE user_id = ?',
+//       [id]
+//     );
+
+//     if (result.affectedRows === 0) return res.status(404).json({ message: 'Profile not found' });
+
+//     res.json({ message: 'Profile deleted successfully' });
+//   } catch (err) {
+//     console.error('Error deleting profile:', err);
+//     res.status(500).json({
+//       message: 'Server error',
+//       error: process.env.NODE_ENV === 'development' ? err.message : undefined
+//     });
+//   }
+// };
+
+// /* ===================== GET MY PROFILE ===================== */
+// exports.getMe = async (req, res) => {
+//   req.params.id = req.user.id;
+//   return exports.getById(req, res);
+// };
+
+
+
+
+
+
+const pool = require('../config/db');
+
+/* ===================== GET ALL CLERKS ===================== */
+exports.getAll = async (req, res) => {
   try {
-    const { userId } = req.params;
-    const {
-      date_of_birth,
-      gender,
-      phone_number,
-      address,
-      education_background,
-      degree,
-    } = req.body;
+    const requesterOrg = req.user?.organization_id;
+    const requesterBranch = req.user?.branch_id;
+    const requesterRole = req.user?.role;
 
-    // === Profile photo ===
-    const profilePhotoAbsPath = req.files?.profile_photo?.[0]?.path || null;
-    const profilePhoto = profilePhotoAbsPath ? toRelativeUploadPath(profilePhotoAbsPath) : null;
+    if (!requesterOrg) return res.status(401).json({ message: 'Unauthorized' });
 
-    // === Attachments ===
-    const uploadedAttachments = req.files?.attachments || [];
-    const attachments = uploadedAttachments.map((file, index) => {
-      const label = req.body[`attachments[${index}][label]`] || `Attachment ${index + 1}`;
-      return {
-        label,
-        filePath: toRelativeUploadPath(file.path)
-      };
+    // Fetch users with role = 'Clerk' dynamically from the users table
+    let sql = `
+      SELECT u.*, cp.* 
+      FROM users u
+      LEFT JOIN clerk_profiles cp ON u.id = cp.user_id
+      WHERE u.organization_id = ? AND u.role = 'Clerk'
+    `;
+    const params = [requesterOrg];
+
+    // If requester is not Super_Admin, filter by branch
+    if (requesterRole !== 'Super_Admin' && requesterBranch) {
+      sql += ` AND u.branch_id = ?`;
+      params.push(requesterBranch);
+    }
+
+    sql += ` ORDER BY u.name ASC, u.created_at DESC`;
+
+    const [rows] = await pool.promise().execute(sql, params);
+
+    // Add has_profile flag dynamically
+    res.json(rows.map(c => ({
+      ...c,
+      has_profile: !!(c.phone_number || c.date_of_birth)
+    })));
+  } catch (err) {
+    console.error('Error fetching clerks:', err);
+    res.status(500).json({
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
     });
+  }
+};
 
-    // === Check existing profile in clerk_profiles ===
-    const [existing] = await db.promise().execute(
-      'SELECT * FROM clerk_profiles WHERE user_id = ?',
-      [userId]
+/* ===================== GET CLERK BY ID ===================== */
+exports.getById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const requesterId = req.user?.id;
+    const requesterOrg = req.user?.organization_id;
+    const requesterBranch = req.user?.branch_id;
+    const requesterRole = req.user?.role;
+
+    if (!id) return res.status(400).json({ message: 'Clerk ID is required' });
+
+    // const [targetRows] = await pool.promise().execute(
+    //   `SELECT u.*, cp.* 
+    //    FROM users u
+    //    LEFT JOIN clerk_profiles cp ON u.id = cp.user_id
+    //    WHERE u.id = ?`,
+    //   [id]
+    // );
+
+    const [targetRows] = await pool.promise().execute(
+      `SELECT 
+      u.id AS user_id, 
+      u.name, 
+      u.role,
+      u.branch_id, 
+      u.organization_id,
+      cp.* 
+   FROM users u
+   LEFT JOIN clerk_profiles cp ON u.id = cp.user_id
+   WHERE u.id = ?`,
+      [id]
     );
 
+
+
+    if (targetRows.length === 0) return res.status(404).json({ message: 'Clerk not found' });
+
+    const target = targetRows[0];
+
+    // Permission check
+    const isSelf = requesterId === parseInt(id);
+    const isSameOrg = requesterOrg === target.organization_id;
+    const isAdmin = ['Super_Admin', 'School_Admin'].includes(requesterRole);
+    const canView = isSelf || (isAdmin && isSameOrg && (!requesterBranch || requesterBranch === target.branch_id));
+
+    if (!canView) return res.status(403).json({ message: 'Access denied' });
+
+    res.json({ ...target, has_profile: !!(target.phone_number || target.date_of_birth) });
+  } catch (err) {
+    console.error('Error fetching clerk by ID:', err);
+    res.status(500).json({
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
+  }
+};
+
+/* ===================== CREATE OR UPDATE PROFILE ===================== */
+exports.create = exports.update = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const data = req.body;
+
+    if (data.date_of_birth) {
+      const d = new Date(data.date_of_birth);
+      data.date_of_birth = d.toISOString().slice(0, 10);
+    }
+
+    if (!id) return res.status(400).json({ message: 'Clerk ID is required' });
+
+    // Check if user exists
+    const [userCheck] = await pool.promise().execute(
+      'SELECT id FROM users WHERE id = ?',
+      [id]
+    );
+
+    if (userCheck.length === 0) return res.status(404).json({ message: 'User not found' });
+
+    // Check if profile exists
+    const [existing] = await pool.promise().execute(
+      'SELECT * FROM clerk_profiles WHERE user_id = ?',
+      [id]
+    );
+
+    const columns = Object.keys(data);
+    const values = Object.values(data);
+
     if (existing.length > 0) {
-      await db.promise().execute(
-        `UPDATE clerk_profiles
-         SET date_of_birth = ?, gender = ?, phone_number = ?, address = ?,
-             education_background = ?, degree = ?, profile_photo = ?,
-             attachments = ?, updated_at = NOW()
-         WHERE user_id = ?`,
-        [
-          date_of_birth, gender, phone_number, address,
-          education_background, degree, profilePhoto,
-          JSON.stringify(attachments), userId
-        ]
-      );
-      return res.json({ message: 'Clerk profile updated' });
+      // Update existing profile
+      const sql = `UPDATE clerk_profiles SET ${columns.map(c => `\`${c}\` = ?`).join(',')}, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?`;
+      await pool.promise().execute(sql, [...values, id]);
+      return res.json({ message: 'Profile updated successfully' });
     } else {
-      await db.promise().execute(
-        `INSERT INTO clerk_profiles
-         (user_id, date_of_birth, gender, phone_number, address, education_background,
-          degree, profile_photo, attachments, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-        [
-          userId, date_of_birth, gender, phone_number, address,
-          education_background, degree, profilePhoto,
-          JSON.stringify(attachments)
-        ]
-      );
-      return res.json({ message: 'Clerk profile created' });
+      // Create new profile
+      const sql = `INSERT INTO clerk_profiles (user_id, ${columns.map(c => `\`${c}\``).join(',')}, created_at) VALUES (?, ${columns.map(() => '?').join(',')}, CURRENT_TIMESTAMP)`;
+      await pool.promise().execute(sql, [id, ...values]);
+      return res.json({ message: 'Profile created successfully' });
     }
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error creating/updating profile:', err);
+    res.status(500).json({
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 };
 
-exports.getProfile = async (req, res) => {
+/* ===================== DELETE PROFILE ===================== */
+exports.remove = async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { id } = req.params;
+    const requesterId = req.user?.id;
+    const requesterRole = req.user?.role;
 
-    // === SECURITY: Get requester's context ===
-    const requesterOrg = req.user ? req.user.organization_id : null;
-    const requesterBranch = req.user ? req.user.branch_id : null;
+    if (!id) return res.status(400).json({ message: 'Clerk ID is required' });
 
-    let query = `SELECT 
-         u.id, u.name, u.username, u.role, u.organization_id, u.branch_id,
-         u.two_factor_enabled, u.two_factor_secret,
-         cp.date_of_birth, cp.gender, cp.phone_number, cp.address,
-         cp.education_background, cp.degree,
-         cp.profile_photo, cp.attachments
-       FROM users u
-       LEFT JOIN clerk_profiles cp ON u.id = cp.user_id
-       WHERE u.id = ?`;
+    const isSelf = requesterId === parseInt(id);
+    const isAdmin = ['Super_Admin', 'School_Admin'].includes(requesterRole);
 
-    const params = [userId];
+    if (!isSelf && !isAdmin) return res.status(403).json({ message: 'Access denied' });
 
-    // === FILTER: Ensure we only fetch if in same Org/Branch ===
-    if (requesterOrg) {
-        query += ` AND u.organization_id = ?`;
-        params.push(requesterOrg);
-    }
-    if (requesterBranch) {
-       query += ` AND u.branch_id = ?`;
-       params.push(requesterBranch);
-    }
+    const [result] = await pool.promise().execute(
+      'DELETE FROM clerk_profiles WHERE user_id = ?',
+      [id]
+    );
 
-    const [rows] = await db.promise().execute(query, params);
+    if (result.affectedRows === 0) return res.status(404).json({ message: 'Profile not found' });
 
-    if (rows.length === 0) {
-      return res.status(404).json({ message: 'Clerk profile not found or access denied' });
-    }
-
-    const profile = rows[0];
-    profile.profileImage = profile.profile_photo; 
-
-    if (profile.attachments) {
-      try {
-        profile.attachments = JSON.parse(profile.attachments);
-      } catch (err) {
-        console.warn('Invalid JSON in attachments:', err);
-        profile.attachments = [];
-      }
-    }
-
-    res.json(profile);
+    res.json({ message: 'Profile deleted successfully' });
   } catch (err) {
-    console.error('Error fetching clerk profile:', err);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error deleting profile:', err);
+    res.status(500).json({
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
   }
 };
 
-exports.getClerksIfQuery = async (req, res) => {
-  try {
-    const { role } = req.query;
-
-    // === CRITICAL: Get Organization & Branch from Token ===
-    const organizationId = req.user ? req.user.organization_id : null;
-    const branchId = req.user ? req.user.branch_id : null;
-
-    if (!organizationId) {
-        return res.status(401).json({ message: "Unauthorized: Organization Context Missing" });
-    }
-
-    if (role === 'Clerk') {
-      const [rows] = await db.promise().execute(
-        `SELECT 
-           u.id, u.name, u.username, u.role, u.organization_id, u.branch_id,
-           cp.date_of_birth, cp.gender, cp.phone_number, cp.address,
-           cp.education_background, cp.degree,
-           cp.profile_photo, cp.attachments
-         FROM users u
-         LEFT JOIN clerk_profiles cp ON u.id = cp.user_id
-         WHERE u.role = ? 
-         AND u.organization_id = ? 
-         AND u.branch_id = ?`, // <--- Multi-Tenant & Branch Filter
-        [role, organizationId, branchId]
-      );
-
-      return res.json({ users: rows });
-    }
-
-    res.status(400).json({ message: 'Invalid or missing role query' });
-  } catch (err) {
-    console.error('Error fetching clerks by role:', err);
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
+/* ===================== GET MY PROFILE ===================== */
 exports.getMe = async (req, res) => {
-  try {
-    if (!req.user || !req.user.id) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-    
-    req.params.userId = req.user.id;
-    return exports.getProfile(req, res);
-    
-  } catch (error) {
-    console.error("Get Me Error:", error);
-    res.status(500).json({ message: "Server error fetching profile" });
-  }
+  console.log("req.user:", req.user); // 🔥 Add this to debug
+  req.params.id = req.user.id;
+  return exports.getById(req, res);
 };
