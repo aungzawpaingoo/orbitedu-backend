@@ -103,12 +103,12 @@ const createUser = async (req, res) => {
     try {
       if (role === 'Teacher') {
         await pool.promise().execute(
-          `INSERT INTO teacher_profiles (user_id, created_at) VALUES (?, CURRENT_TIMESTAMP)`,
+          `INSERT INTO teacher_profiles (user_id, status, created_at) VALUES (?, 'Active', CURRENT_TIMESTAMP)`,
           [userId]
         );
       } else if (role === 'Clerk') {
         await pool.promise().execute(
-          `INSERT INTO clerk_profiles (user_id, created_at) VALUES (?, CURRENT_TIMESTAMP)`,
+          `INSERT INTO clerk_profiles (user_id, status, created_at) VALUES (?, 'Active', CURRENT_TIMESTAMP)`,
           [userId]
         );
       }
