@@ -259,9 +259,54 @@ const verifyUser2FA = async (req, res) => {
   }
 };
 
+// ========== Get Logged-in User Profile (/me) ==========
+const getMe = async (req, res) => {
+  try {
+    const { id, role } = req.user;
+    let sql = '';
+    let profileTable = '';
+
+    // Determine which profile table to join based on role
+    if (role === 'Teacher') {
+      profileTable = 'teacher_profiles';
+    } else if (role === 'Clerk') {
+      profileTable = 'clerk_profiles';
+    }
+
+    if (profileTable) {
+      // Join users with their specific profile
+      sql = `
+        SELECT 
+          u.id, u.name, u.username, u.role, u.organization_id, u.branch_id, u.created_at, u.two_factor_enabled,
+          p.*
+        FROM users u
+        LEFT JOIN ${profileTable} p ON u.id = p.user_id
+        WHERE u.id = ?
+      `;
+    } else {
+      // For Admin roles without specific profiles
+      sql = `SELECT id, name, username, role, organization_id, branch_id, created_at, two_factor_enabled FROM users WHERE id = ?`;
+    }
+
+    const [rows] = await pool.promise().execute(sql, [id]);
+    if (rows.length === 0) return res.status(404).json({ message: 'User not found' });
+
+    const user = rows[0];
+    
+    res.json({
+      ...user,
+      has_profile: profileTable ? !!(user.phone_number || user.date_of_birth) : false
+    });
+  } catch (err) {
+    console.error('❌ getMe error:', err);
+    res.status(500).json({ message: 'Failed to fetch your profile' });
+  }
+};
+
 module.exports = {
   createUser,
   getCreatedUsersByCurrentUser,
   verifyUser2FA,
-  getUsers
+  getUsers,
+  getMe
 };

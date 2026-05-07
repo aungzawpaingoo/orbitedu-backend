@@ -28,7 +28,10 @@ const classRoutes = require('./routes/class.routes');
 const timetableRoutes = require('./routes/timetable.routes');
 const timetableEntryRoutes = require('./routes/timetable-entry.routes');
 const leaverequestRoutes = require('./routes/leave_requests.routes');
-const userProfileRoutes = require('./routes/userProfile.routes');
+//const userProfileRoutes = require('./routes/userProfile.routes');
+
+const profileRoutes = require('./routes/profile.routes');
+
 
 
 
@@ -50,7 +53,7 @@ app.use('/api/classes', classRoutes);
 app.use('/api/timetables', timetableRoutes);
 app.use('/api/timetable-entries', timetableEntryRoutes);
 app.use('/api/leave-requests', leaverequestRoutes);
-app.use('/api/profile', userProfileRoutes);
+app.use('/api/profile', profileRoutes);
 
 
 
